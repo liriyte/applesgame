@@ -29,6 +29,15 @@ namespace ApplesGame
 		AcceleratePlayerFiniteApples = 1 << 3
 	};
 
+	enum class ScoreTableId // четыре таблицы рекордов на каждый режим игры
+	{
+		FiniteApples = 0,
+		InfiniteApples,
+		AcceleratePlayer,
+		AcceleratePlayerFiniteApples,
+		Count
+	};
+
 	inline GameSettingsBits operator|(GameSettingsBits a, GameSettingsBits b)
 	{
 		return static_cast<GameSettingsBits>(static_cast<uint8_t>(a) | static_cast<uint8_t>(b));
@@ -55,10 +64,17 @@ namespace ApplesGame
 		return (static_cast<uint8_t>(mask) & static_cast<uint8_t>(flag)) != 0;
 	}
 
-	struct ScoreEntry
+	struct ScoreEntry // вводные таблицы рекордов
 	{
 		std::string scoreboardName = "";
 		int scoreboardScore = 0;
+	};
+
+	struct ScoreTableData
+	{
+		bool initialized = false;
+		ScoreEntry highScores[MAX_SCORES];
+		int highCount = 0;
 	};
 
 	struct Game
@@ -67,7 +83,6 @@ namespace ApplesGame
 		GameState state = GameState::MainMenu;
 
 		int countApples = MAX_NUM_APPLES;
-		int initialApplesCount = 0; // сколько яблок инициализируется на старте раунда
 
 		Player player;
 		Apple apples[MAX_NUM_APPLES];
@@ -75,7 +90,7 @@ namespace ApplesGame
 		AppleCellCoord appleCellCoords[MAX_NUM_APPLES] = {}; // макссив клеток с яблоками
 		Rock rocks[NUM_ROCKS];
 
-		sf::RectangleShape background;
+		sf::Sprite background;
 		sf::FloatRect gameOverTextFormSize;
 		sf::FloatRect youWinTextFormSize;
 
@@ -94,6 +109,8 @@ namespace ApplesGame
 
 
 		// Resources
+		sf::Texture backgroundTexture;
+		sf::Texture backgroundEndTexture;
 		sf::Texture playerTexture;
 		sf::Texture applesTexture;
 		sf::Texture rocksTexture;
@@ -102,14 +119,10 @@ namespace ApplesGame
 		sf::SoundBuffer playerDeath;
 
 		// Scoreboard
-		bool scoreTableInitialized = false;
-		ScoreEntry highScores[MAX_SCORES];
-		int highCount = 0;
+		ScoreTableData scoreTables[static_cast<int>(ScoreTableId::Count)];
+		ScoreTableId scoreTableScreenId = ScoreTableId::InfiniteApples;
+
 		sf::Text scoresTitle;
-
-		sf::Text textPlayToSeeScoreTable;
-		sf::FloatRect textPlayToSeeScoreTableBound;
-
 		sf::Text scoreRows[MAX_ROWS_SHOWN];
 		sf::Text scoresBackHint;
 		int rowsShown = 0;
@@ -124,7 +137,8 @@ namespace ApplesGame
 	void DrawScoreTableScreen(Game& game, sf::RenderWindow& window);
 	void DeinitializeGame(Game& game);
 
-	void EnsureScoreTableInitialized(Game& game);
+	void EnsureScoreTableInitialized(Game& game, ScoreTableId tableId);
 	void OnGameOver(Game& game);
-	void DrawScoreTable(Game& game, sf::RenderWindow& window);
+	void DrawScoreTable(Game& game, sf::RenderWindow& window, ScoreTableId tableId);
 }
+

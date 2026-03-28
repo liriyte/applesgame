@@ -47,6 +47,7 @@ int main()
 				{
 				case GameState::MainMenu:
 				{
+					
 					switch (event.key.code)
 					{
 					case Keyboard::Num1:
@@ -66,6 +67,7 @@ int main()
 						break;
 
 					case Keyboard::Num5:
+						game.scoreTableScreenId = ScoreTableId::InfiniteApples;
 						game.state = GameState::ScoreTable;
 						break;
 
@@ -102,9 +104,25 @@ int main()
 					break;
 				}
 
-				case GameState::ScoreTable:
+				case GameState::ScoreTable: // переключение таблиц рекордов внутри меню
 				{
-					if (event.key.code == Keyboard::Escape)
+					if (event.key.code == Keyboard::Num1)
+					{
+						game.scoreTableScreenId = ScoreTableId::FiniteApples;
+					}
+					else if (event.key.code == Keyboard::Num2)
+					{
+						game.scoreTableScreenId = ScoreTableId::InfiniteApples;
+					}
+					else if (event.key.code == Keyboard::Num3)
+					{
+						game.scoreTableScreenId = ScoreTableId::AcceleratePlayer;
+					}
+					else if (event.key.code == Keyboard::Num4)
+					{
+						game.scoreTableScreenId = ScoreTableId::AcceleratePlayerFiniteApples;
+					}
+					else if (event.key.code == Keyboard::Escape)
 					{
 						game.state = GameState::MainMenu;
 					}
@@ -130,6 +148,7 @@ int main()
 		switch (game.state)
 		{
 		case GameState::MainMenu:
+			window.draw(game.background); // ПРОВЕРИТЬ! НЕ затягивает ли левый фон
 			DrawMainMenu(menu, window);
 			break;
 

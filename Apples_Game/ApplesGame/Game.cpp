@@ -35,9 +35,116 @@ namespace ApplesGame
 		}
 	}
 
-	static void RebuildScoreRows(Game& game)
+	// предварительна€ настройка таблиц рекордов под каждый режим
+	static int ToIndex(ScoreTableId tableId)
 	{
-		InsertionSort(game.highScores, game.highCount);
+		return static_cast<int>(tableId);
+	}
+
+	static ScoreTableData& GetScoreTableData(Game& game, ScoreTableId tableId)
+	{
+		return game.scoreTables[ToIndex(tableId)];
+	}
+
+	static const ScoreTableData& GetScoreTableData(const Game& game, ScoreTableId tableId)
+	{
+		return game.scoreTables[ToIndex(tableId)];
+	}
+
+	static ScoreTableId GetScoreTableIdFromMode(GameSettingsBits mode)
+	{
+		switch (mode)
+		{
+		case GameSettingsBits::FiniteApples:
+			return ScoreTableId::FiniteApples;
+
+		case GameSettingsBits::InfiniteApples:
+			return ScoreTableId::InfiniteApples;
+
+		case GameSettingsBits::AcceleratePlayer:
+			return ScoreTableId::AcceleratePlayer;
+
+		case GameSettingsBits::AcceleratePlayerFiniteApples:
+			return ScoreTableId::AcceleratePlayerFiniteApples;
+
+		default:
+			return ScoreTableId::InfiniteApples;
+		}
+	}
+
+	static const wchar_t* GetScoreTableTitle(ScoreTableId tableId)
+	{
+		switch (tableId)
+		{
+		case ScoreTableId::FiniteApples:
+			return L"“јЅЋ»÷ј –≈ ќ–ƒќ¬:\nконечные €блоки";
+
+		case ScoreTableId::InfiniteApples:
+			return L"“јЅЋ»÷ј –≈ ќ–ƒќ¬:\nбесконечные €блоки";
+
+		case ScoreTableId::AcceleratePlayer:
+			return L"“јЅЋ»÷ј –≈ ќ–ƒќ¬:\nускорение игрока";
+
+		case ScoreTableId::AcceleratePlayerFiniteApples:
+			return L"“јЅЋ»÷ј –≈ ќ–ƒќ¬:\nускорение + лимит €блок";
+
+		default:
+			return L"“јЅЋ»÷ј –≈ ќ–ƒќ¬";
+		}
+	}
+
+	static int GetBotScoreUpperBound(ScoreTableId tableId)
+	{
+		switch (tableId)
+		{
+		case ScoreTableId::FiniteApples:
+		case ScoreTableId::AcceleratePlayerFiniteApples:
+			return MAX_NUM_APPLES;
+
+		case ScoreTableId::InfiniteApples:
+		case ScoreTableId::AcceleratePlayer:
+			return MAX_RAND_SCORE;
+
+		default:
+			return MAX_RAND_SCORE;
+		}
+	}
+	
+	// инициализаци€ интерфейса таблицы дл€ всех режимов
+	static void InitScoreTableUi(Game& game)
+	{
+		game.scoresTitle.setFont(game.font);
+		game.scoresTitle.setCharacterSize(28);
+		game.scoresTitle.setFillColor(sf::Color::White);
+
+		for (int i = 0; i < MAX_ROWS_SHOWN; ++i)
+		{
+			game.scoreRows[i].setFont(game.font);
+			game.scoreRows[i].setCharacterSize(22);
+			game.scoreRows[i].setFillColor(sf::Color::White);
+		}
+
+		game.scoresBackHint.setFont(game.font);
+		game.scoresBackHint.setCharacterSize(18);
+		game.scoresBackHint.setFillColor(sf::Color::White);
+		game.scoresBackHint.setString(L"[1Ц4]		 сменить таблицу\n[Esc]		 вернутьс€ в меню");
+
+		const sf::FloatRect hintBounds = game.scoresBackHint.getLocalBounds();
+		game.scoresBackHint.setOrigin(
+			hintBounds.left + hintBounds.width / 2.f,
+			hintBounds.top + hintBounds.height / 2.f
+		);
+		game.scoresBackHint.setPosition(SCREEN_WIDTH / 2.f, SCREEN_HEIGHT - 55.f);
+	}
+
+	// пересобираем счетчик таблицы рекордов
+	static void RebuildScoreRows(Game& game, ScoreTableId tableId)
+	{
+		ScoreTableData& table = GetScoreTableData(game, tableId);
+
+		InsertionSort(table.highScores, table.highCount);
+
+		game.scoresTitle.setString(GetScoreTableTitle(tableId));
 
 		const sf::FloatRect titleBounds = game.scoresTitle.getLocalBounds();
 		game.scoresTitle.setOrigin(
@@ -50,11 +157,11 @@ namespace ApplesGame
 		const float startY = 130.f;
 		const float lineStep = 34.f;
 
-		game.rowsShown = (game.highCount < MAX_ROWS_SHOWN) ? game.highCount : MAX_ROWS_SHOWN;
+		game.rowsShown = (table.highCount < MAX_ROWS_SHOWN) ? table.highCount : MAX_ROWS_SHOWN;
 
 		for (int i = 0; i < game.rowsShown; ++i)
 		{
-			const ScoreEntry& entry = game.highScores[i];
+			const ScoreEntry& entry = table.highScores[i];
 			game.scoreRows[i].setString(
 				std::to_string(i + 1) + ". " +
 				entry.scoreboardName + " : " +
@@ -62,20 +169,6 @@ namespace ApplesGame
 			);
 			game.scoreRows[i].setPosition(startX, startY + i * lineStep);
 		}
-	}
-
-	static int GetBotScoreUpperBound(const Game& game)
-	{
-		const bool isFiniteMode =
-			HasMode(game.gameMode, GameSettingsBits::FiniteApples) ||
-			HasMode(game.gameMode, GameSettingsBits::AcceleratePlayerFiniteApples);
-
-		if (isFiniteMode)
-		{
-			return game.initialApplesCount; // возвращаем количество €блок на старте
-		}
-
-		return MAX_RAND_SCORE;
 	}
 
 	static void CollectNearbyAppleIndices(const Game& game, std::vector<int>& outAppleIndices)
@@ -119,9 +212,11 @@ namespace ApplesGame
 		}
 	}
 
-	void EnsureScoreTableInitialized(Game& game)
+	void EnsureScoreTableInitialized(Game& game, ScoreTableId tableId)
 	{
-		if (game.scoreTableInitialized)
+		ScoreTableData& table = GetScoreTableData(game, tableId);
+
+		if (table.initialized)
 		{
 			return;
 		}
@@ -129,62 +224,41 @@ namespace ApplesGame
 		const char* names[] = { "Neo", "Lena", "Ghost", "Nora", "Sonic" };
 		const int namesCount = static_cast<int>(sizeof(names) / sizeof(names[0]));
 
-		game.highCount = 0;
+		table.highCount = 0;
 
-		for (int i = 0; i < namesCount && game.highCount < MAX_SCORES - 1; ++i)
+		const int botMaxScore = GetBotScoreUpperBound(tableId);
+		const int botMinScore = (MIN_RAND_SCORE < botMaxScore) ? MIN_RAND_SCORE : botMaxScore;
+
+		for (int i = 0; i < namesCount && table.highCount < MAX_SCORES - 1; ++i)
 		{
-			game.highScores[game.highCount].scoreboardName = names[i];
-
-			const int botMaxScore = GetBotScoreUpperBound(game);
-			const int botMinScore = (MIN_RAND_SCORE < botMaxScore) ? MIN_RAND_SCORE : botMaxScore;
-			game.highScores[game.highCount].scoreboardScore =
+			table.highScores[table.highCount].scoreboardName = names[i];
+			table.highScores[table.highCount].scoreboardScore =
 				botMinScore + (rand() % (botMaxScore - botMinScore + 1));
-			++game.highCount;
+			++table.highCount;
 		}
 
-		if (game.highCount < MAX_SCORES)
+		if (table.highCount < MAX_SCORES)
 		{
-			game.highScores[game.highCount].scoreboardName = "Player";
-			game.highScores[game.highCount].scoreboardScore = 0;
-			++game.highCount;
+			table.highScores[table.highCount].scoreboardName = "Player";
+			table.highScores[table.highCount].scoreboardScore = 0;
+			++table.highCount;
 		}
 
-		game.scoresTitle.setFont(game.font);
-		game.scoresTitle.setCharacterSize(30);
-		game.scoresTitle.setFillColor(sf::Color::White);
-		game.scoresTitle.setString(L"“аблица рекордов");
-
-		for (int i = 0; i < MAX_ROWS_SHOWN; ++i)
-		{
-			game.scoreRows[i].setFont(game.font);
-			game.scoreRows[i].setCharacterSize(22);
-			game.scoreRows[i].setFillColor(sf::Color::White);
-		}
-
-		game.scoresBackHint.setFont(game.font);
-		game.scoresBackHint.setCharacterSize(18);
-		game.scoresBackHint.setFillColor(sf::Color::White);
-		game.scoresBackHint.setString(L"Ќажмите Esc, чтобы вернутьс€ в меню");
-
-		const sf::FloatRect hintBounds = game.scoresBackHint.getLocalBounds();
-		game.scoresBackHint.setOrigin(
-			hintBounds.left + hintBounds.width / 2.f,
-			hintBounds.top + hintBounds.height / 2.f
-		);
-		game.scoresBackHint.setPosition(SCREEN_WIDTH / 2.f, SCREEN_HEIGHT - 35.f);
-
-		RebuildScoreRows(game);
-		game.scoreTableInitialized = true;
+		table.initialized = true;
 	}
 
 	void OnGameOver(Game& game)
 	{
-		EnsureScoreTableInitialized(game);
+		const ScoreTableId tableId = GetScoreTableIdFromMode(game.gameMode);
+
+		EnsureScoreTableInitialized(game, tableId);
+
+		ScoreTableData& table = GetScoreTableData(game, tableId);
 
 		int playerIndex = -1;
-		for (int i = 0; i < game.highCount; ++i)
+		for (int i = 0; i < table.highCount; ++i)
 		{
-			if (game.highScores[i].scoreboardName == "Player")
+			if (table.highScores[i].scoreboardName == "Player")
 			{
 				playerIndex = i;
 				break;
@@ -193,26 +267,26 @@ namespace ApplesGame
 
 		const int playerScore = game.numEatenApples;
 
-		// ќставл€ем лучший результат игрока, а не просто перезаписываем его любым значением.
 		if (playerIndex != -1)
 		{
-			if (playerScore > game.highScores[playerIndex].scoreboardScore)
+			if (playerScore > table.highScores[playerIndex].scoreboardScore)
 			{
-				game.highScores[playerIndex].scoreboardScore = playerScore;
+				table.highScores[playerIndex].scoreboardScore = playerScore;
 			}
 		}
-		else if (game.highCount < MAX_SCORES)
+		else if (table.highCount < MAX_SCORES)
 		{
-			game.highScores[game.highCount].scoreboardName = "Player";
-			game.highScores[game.highCount].scoreboardScore = playerScore;
-			++game.highCount;
+			table.highScores[table.highCount].scoreboardName = "Player";
+			table.highScores[table.highCount].scoreboardScore = playerScore;
+			++table.highCount;
 		}
-
-		RebuildScoreRows(game);
 	}
 
-	void DrawScoreTable(Game& game, sf::RenderWindow& window)
+	void DrawScoreTable(Game& game, sf::RenderWindow& window, ScoreTableId tableId)
 	{
+		EnsureScoreTableInitialized(game, tableId);
+		RebuildScoreRows(game, tableId);
+
 		window.draw(game.scoresTitle);
 
 		for (int i = 0; i < game.rowsShown; ++i)
@@ -225,7 +299,6 @@ namespace ApplesGame
 	{
 		InitPlayer(game.player, game);
 		game.countApples = GetRansomApplesCount(MIN_NUM_APPLES, MAX_NUM_APPLES);
-		game.initialApplesCount = game.countApples; // передаем на старте раунда количество €блок на карте (нужно дл€ режимов с ограниченным числом €блок)
 
 		for (int i = 0; i < game.countApples; ++i)
 		{
@@ -239,11 +312,8 @@ namespace ApplesGame
 			InitRocks(game.rocks[i], game);
 		}
 
-		game.background.setFillColor(sf::Color::Black);
+		game.background.setTexture(game.backgroundTexture, true);
 		game.background.setPosition(0.f, 0.f);
-		game.scoreText.setFillColor(sf::Color::Red);
-		game.textPauseInGame.setFillColor(sf::Color::Red);
-
 
 		game.numEatenApples = 0;
 		game.currentTime = 0.f;
@@ -256,79 +326,67 @@ namespace ApplesGame
 		assert(game.playerEatApple.loadFromFile(RESOURCES_PATH + "\\AppleEat.wav"));
 		assert(game.playerDeath.loadFromFile(RESOURCES_PATH + "\\Death.wav"));
 
+		assert(game.backgroundTexture.loadFromFile(RESOURCES_PATH + "\\Background.png"));
+		assert(game.backgroundEndTexture.loadFromFile(RESOURCES_PATH + "\\Background_End.png"));
 		assert(game.playerTexture.loadFromFile(RESOURCES_PATH + "\\Player.png"));
 		assert(game.applesTexture.loadFromFile(RESOURCES_PATH + "\\Apple.png"));
 		assert(game.rocksTexture.loadFromFile(RESOURCES_PATH + "\\Rock.png"));
 
 		assert(game.font.loadFromFile(RESOURCES_PATH + "Fonts/Roboto-Black.ttf"));
 
-		game.background.setSize(sf::Vector2f((float)SCREEN_WIDTH, (float)SCREEN_HEIGHT));
+		game.background.setTexture(game.backgroundTexture);
 		game.background.setPosition(0.f, 0.f);
-		game.background.setFillColor(sf::Color::Black);
 
 		game.scoreText.setFont(game.font);
-		game.scoreText.setCharacterSize(30);
-		game.scoreText.setFillColor(sf::Color::Red);
+		game.scoreText.setCharacterSize(20);
+		game.scoreText.setFillColor(sf::Color::White);
 		game.scoreText.setPosition(1.f, 1.f);
 		game.scoreText.setString(L"Your score is: 0");
 
 		game.textPauseInGame.setFont(game.font);
-		game.textPauseInGame.setCharacterSize(30);
-		game.textPauseInGame.setFillColor(sf::Color::Red);
-		game.textPauseInGame.setPosition(1.f, 40.f);
-		game.textPauseInGame.setString(L"ѕауза = Esc");
+		game.textPauseInGame.setCharacterSize(20);
+		game.textPauseInGame.setFillColor(sf::Color::White);
+		game.textPauseInGame.setPosition(1.f, 20.f);
+		game.textPauseInGame.setString(L"ѕауза Ч Esc");
 
 		game.gameOverText.setFont(game.font);
 		game.gameOverText.setCharacterSize(50);
-		game.gameOverText.setFillColor(sf::Color::Black);
+		game.gameOverText.setFillColor(sf::Color::Red);
 		game.gameOverText.setString("Game Over!");
 		game.gameOverTextFormSize = game.gameOverText.getLocalBounds();
 		game.gameOverText.setOrigin(
 			game.gameOverTextFormSize.left + game.gameOverTextFormSize.width / 2.f,
-			game.gameOverTextFormSize.top + game.gameOverTextFormSize.height / 2.f - 100.f
-		);
+			game.gameOverTextFormSize.top + game.gameOverTextFormSize.height / 2.f - 100.f);
 		game.gameOverText.setPosition(SCREEN_WIDTH / 2.f, SCREEN_HEIGHT / 2.f);
 
 		game.youWinText.setFont(game.font);
 		game.youWinText.setCharacterSize(60);
-		game.youWinText.setFillColor(sf::Color::Black);
+		game.youWinText.setFillColor(sf::Color::Red);
 		game.youWinText.setString("YOU WIN!!!");
 		game.youWinTextFormSize = game.youWinText.getLocalBounds();
 		game.youWinText.setOrigin(
 			game.youWinTextFormSize.left + game.youWinTextFormSize.width / 2.f,
 			game.youWinTextFormSize.top + game.youWinTextFormSize.height / 2.f
 		);
-		game.youWinText.setPosition(SCREEN_WIDTH / 2.f, SCREEN_HEIGHT / 2.f - 70.f);
+		game.youWinText.setPosition(SCREEN_WIDTH / 2.f, SCREEN_HEIGHT / 2.f - 100.f);
 
 		game.state = GameState::MainMenu;
+		game.scoreTableScreenId = ScoreTableId::InfiniteApples;
 
-		if (game.scoreTableInitialized == false)
-		{
-			game.textPlayToSeeScoreTable.setFont(game.font);
-			game.textPlayToSeeScoreTable.setCharacterSize(25);
-			game.textPlayToSeeScoreTable.setFillColor(sf::Color::White);
-			game.textPlayToSeeScoreTable.setString(L"Ќачните игру,\nчтобы попасть в таблицу рекордов");
-			game.textPlayToSeeScoreTableBound = game.textPlayToSeeScoreTable.getLocalBounds();
-			game.textPlayToSeeScoreTable.setOrigin(
-				game.textPlayToSeeScoreTableBound.left + game.textPlayToSeeScoreTableBound.width / 2.f,
-				game.textPlayToSeeScoreTableBound.top + game.textPlayToSeeScoreTableBound.height / 2.f
-			);
-			game.textPlayToSeeScoreTable.setPosition(SCREEN_WIDTH / 2.f, SCREEN_HEIGHT / 2.f);
-
-		}
-
+		InitScoreTableUi(game);
 
 		RestartGame(game);
+
+		EnsureScoreTableInitialized(game, ScoreTableId::FiniteApples);
+		EnsureScoreTableInitialized(game, ScoreTableId::InfiniteApples);
+		EnsureScoreTableInitialized(game, ScoreTableId::AcceleratePlayer);
+		EnsureScoreTableInitialized(game, ScoreTableId::AcceleratePlayerFiniteApples);
 	}
 
 	void StartGame(Game& game, GameSettingsBits mode)
 	{
 		game.gameMode = mode;
 		RestartGame(game);
-
-		game.scoreTableInitialized = false; // запуск пустой таблицы рекордов (т.к. игрок еще не играл)
-		EnsureScoreTableInitialized(game);
-		
 		game.state = GameState::Playing;
 	}
 
@@ -342,8 +400,8 @@ namespace ApplesGame
 		game.pauseTimeLeft = game.currentTime;
 		game.state = GameState::GameOver;
 
-		game.background.setFillColor(sf::Color::Red);
-		game.scoreText.setFillColor(sf::Color::Black);
+		game.background.setTexture(game.backgroundEndTexture, true);
+		game.background.setPosition(0.f, 0.f);
 
 		if (!game.scoreSavedForCurrentRound)
 		{
@@ -366,6 +424,8 @@ namespace ApplesGame
 			if (game.currentTime - game.pauseTimeLeft > PAUSE_TIME)
 			{
 				game.state = GameState::MainMenu;
+				game.background.setTexture(game.backgroundTexture, true); // обновл€ю фон в меню
+				game.background.setPosition(0.f, 0.f);
 			}
 			return;
 		}
@@ -523,19 +583,15 @@ namespace ApplesGame
 				window.draw(game.youWinText);
 			}
 
-			DrawScoreTable(game, window);
+			DrawScoreTable(game, window, GetScoreTableIdFromMode(game.gameMode));
 		}
 	}
 
 	void DrawScoreTableScreen(Game& game, sf::RenderWindow& window)
 	{
-		DrawScoreTable(game, window);
+		window.draw(game.background);
+		DrawScoreTable(game, window, game.scoreTableScreenId);
 		window.draw(game.scoresBackHint);
-
-		if (game.scoreTableInitialized == false)
-		{
-			window.draw(game.textPlayToSeeScoreTable);
-		}
 	}
 
 	void DeinitializeGame(Game& game)

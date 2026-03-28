@@ -7,7 +7,7 @@ namespace ApplesGame
 	const int SCREEN_WIDTH = 800;
 	const int SCREEN_HEIGHT = 600;
 	const float INITIAL_SPEED = 100.f;
-	const float PLAYER_SIZE = 20.f;
+	const float PLAYER_SIZE = 30.f;
 	const float ACCELERATION = 20.f;
 	const float APPLE_SIZE = 20.f;
 	const int NUM_ROCKS = 8;

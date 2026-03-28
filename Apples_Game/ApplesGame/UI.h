@@ -5,21 +5,22 @@ namespace ApplesGame
 {
 	struct Menu
 	{
-		const float BUTTON_WIDTH = 280.f;
+		const float BUTTON_WIDTH = 320.f;
 		const float BUTTON_HEIGHT = 60.f;
 		const float GAP_BETWEEN_BUTTON = 20.f;
 
 		sf::Font font;
+		sf::Texture buttonTexture;
 
 		// Главное меню
 		sf::Text mainTitle;
 
-		sf::RectangleShape menuButton1;
-		sf::RectangleShape menuButton2;
-		sf::RectangleShape menuButton3;
-		sf::RectangleShape menuButton4;
-		sf::RectangleShape menuButton5;
-		sf::RectangleShape menuButton6;
+		sf::Sprite menuButton1;
+		sf::Sprite menuButton2;
+		sf::Sprite menuButton3;
+		sf::Sprite menuButton4;
+		sf::Sprite menuButton5;
+		sf::Sprite menuButton6;
 
 
 		sf::Text textFiniteApples;
@@ -30,8 +31,8 @@ namespace ApplesGame
 		sf::Text textExitGame;
 
 		// Меню паузы
-		sf::RectangleShape pauseButton1;
-		sf::RectangleShape pauseButton2;
+		sf::Sprite pauseButton1;
+		sf::Sprite pauseButton2;
 
 		sf::Text pauseTitle;
 		sf::Text textContinue;
